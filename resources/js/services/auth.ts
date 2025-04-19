@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create API client with CSRF handling for Laravel
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: '/api', // This is correct - all routes are now prefixed with /api
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

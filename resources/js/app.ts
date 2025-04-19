@@ -47,11 +47,27 @@ setTimeout(async () => {
         const isAuthenticated = document.querySelector('meta[name="authenticated"][content="true"]');
         console.log('Auth meta tag present:', !!isAuthenticated);
         
+        // First check if API routes are configured correctly
+        try {
+            const debugResponse = await fetch('/api/debug/public');
+            if (debugResponse.ok) {
+                console.log('API routes are configured correctly');
+            } else {
+                console.error('API routes not responding correctly:', debugResponse.status);
+            }
+        } catch (apiCheckError) {
+            console.error('Failed to check API routes:', apiCheckError);
+        }
+        
         // Only generate a token if user is authenticated and doesn't already have one
         if (isAuthenticated) {
             console.log('User is authenticated via web session, generating token...');
-            const result = await AuthService.generateToken();
-            console.log('API token generated successfully:', result);
+            try {
+                const result = await AuthService.generateToken();
+                console.log('API token generated successfully:', result);
+            } catch (tokenError) {
+                console.error('Generate token error details:', tokenError);
+            }
         } else {
             console.log('User not authenticated, skipping token generation');
         }
