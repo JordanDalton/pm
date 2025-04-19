@@ -62,12 +62,36 @@ export const AuthService = {
      */
     async generateToken(): Promise<{ token: string, user: any }> {
         try {
-            const response = await api.post('/token/generate');
+            // First get CSRF cookie
+            try {
+                await axios.get('/sanctum/csrf-cookie');
+                console.log('CSRF cookie obtained successfully');
+            } catch (csrfError) {
+                console.error('Failed to get CSRF cookie:', csrfError);
+            }
+            
+            // Make the token generation request with specific headers
+            const response = await axios.post('/api/token/generate', {
+                device_name: 'browser-' + new Date().getTime()
+            }, {
+                headers: {
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                withCredentials: true // Important for CSRF cookie
+            });
+            
+            console.log('Token generation response:', response.data);
             
             // Store the token in local storage
-            if (response.data.token) {
+            if (response.data && response.data.token) {
                 localStorage.setItem('api_token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
+                console.log('Token stored in localStorage:', response.data.token.substring(0, 10) + '...');
+            } else {
+                console.error('No token in response:', response.data);
             }
             
             return response.data;

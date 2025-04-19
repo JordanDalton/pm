@@ -1,4 +1,12 @@
 import axios from 'axios';
+import TokenManager from './TokenManager';
+
+// Debug helper
+const logWithTime = (message, data = null) => {
+    const now = new Date();
+    const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
+    console.log(`[${timestamp}] ${message}`, data || '');
+};
 
 // Create an axios instance with default config
 const api = axios.create({
@@ -11,13 +19,43 @@ const api = axios.create({
     withCredentials: true // Important for cookie-based authentication with Sanctum
 });
 
-// Add a request interceptor to handle CSRF token
-api.interceptors.request.use(config => {
+// Add a request interceptor to handle CSRF token and API token
+api.interceptors.request.use(async config => {
     // Get the CSRF token from the meta tag
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]');
     
     if (csrfToken) {
         config.headers['X-CSRF-TOKEN'] = csrfToken.getAttribute('content');
+    }
+    
+    // Add API token from multiple possible sources
+    try {
+        // First check if we have a token in storage
+        if (TokenManager.hasToken()) {
+            const token = TokenManager.getToken();
+            if (token) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+                logWithTime('API: Using stored token for request', 
+                    token.substring(0, 10) + '... to ' + config.url);
+            }
+        } else {
+            // If no token in storage, try to generate one
+            const isAuthenticated = document.querySelector('meta[name="authenticated"][content="true"]');
+            if (isAuthenticated) {
+                logWithTime('API: No token found but user is authenticated. Generating token for request to ' + config.url);
+                try {
+                    const token = await TokenManager.ensureToken();
+                    if (token) {
+                        config.headers['Authorization'] = `Bearer ${token}`;
+                        logWithTime('API: Generated and using new token', token.substring(0, 10) + '...');
+                    }
+                } catch (tokenError) {
+                    logWithTime('API: Failed to generate token', tokenError);
+                }
+            }
+        }
+    } catch (error) {
+        logWithTime('API: Error adding auth token to request', error);
     }
     
     return config;

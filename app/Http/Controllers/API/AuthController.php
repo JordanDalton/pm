@@ -59,8 +59,8 @@ class AuthController extends Controller
             ], 401);
         }
         
-        // Device name will be web-session plus timestamp to ensure uniqueness
-        $deviceName = 'web-session-' . now()->timestamp;
+        // Device name from request or a default value
+        $deviceName = $request->input('device_name', 'web-session-' . now()->timestamp);
         
         // Delete old web session tokens (optional cleanup)
         $user->tokens()->where('name', 'like', 'web-session-%')->delete();

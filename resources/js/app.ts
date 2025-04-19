@@ -6,7 +6,9 @@ import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from 'ziggy-js';
 import { initializeTheme } from './composables/useAppearance';
+import { useAuth } from './composables/useAuth';
 import { AuthService } from './services/auth';
+import { initAuthPersistence } from './plugins/persistentAuth';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -40,36 +42,56 @@ createInertiaApp({
 // This will set light / dark mode on page load...
 initializeTheme();
 
+// Initialize auth persistence to keep tokens during navigation
+initAuthPersistence();
+
 // Initialize API token for authenticated users (web session to API token)
 // This is wrapped in a timeout to ensure the app is fully loaded
 setTimeout(async () => {
     try {
+        // Check auth meta tag
         const isAuthenticated = document.querySelector('meta[name="authenticated"][content="true"]');
         console.log('Auth meta tag present:', !!isAuthenticated);
         
-        // First check if API routes are configured correctly
-        try {
-            const debugResponse = await fetch('/api/debug/public');
-            if (debugResponse.ok) {
-                console.log('API routes are configured correctly');
+        // If user is authenticated and we're not on the login page
+        if (isAuthenticated && window.location.pathname !== '/login') {
+            console.log('User is authenticated via web session, initializing auth...');
+            
+            // Don't initialize auth if token already exists
+            if (!localStorage.getItem('api_token')) {
+                try {
+                    // Generate and store token using AuthService directly
+                    const result = await AuthService.generateToken();
+                    console.log('API token generated successfully by app initializer');
+                    
+                    // Test the token with a simple API call
+                    try {
+                        const response = await fetch('/api/user', {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Authorization': `Bearer ${localStorage.getItem('api_token')}`
+                            },
+                            credentials: 'include'
+                        });
+                        
+                        if (response.ok) {
+                            console.log('API authentication working correctly');
+                        } else {
+                            console.error('API authentication failed:', response.status);
+                        }
+                    } catch (apiError) {
+                        console.error('API test error:', apiError);
+                    }
+                } catch (tokenError) {
+                    console.error('Generate token error details:', tokenError);
+                }
             } else {
-                console.error('API routes not responding correctly:', debugResponse.status);
-            }
-        } catch (apiCheckError) {
-            console.error('Failed to check API routes:', apiCheckError);
-        }
-        
-        // Only generate a token if user is authenticated and doesn't already have one
-        if (isAuthenticated) {
-            console.log('User is authenticated via web session, generating token...');
-            try {
-                const result = await AuthService.generateToken();
-                console.log('API token generated successfully:', result);
-            } catch (tokenError) {
-                console.error('Generate token error details:', tokenError);
+                console.log('Token already exists in localStorage');
             }
         } else {
-            console.log('User not authenticated, skipping token generation');
+            console.log('User not authenticated or on login page, skipping token generation');
         }
     } catch (error) {
         console.error('Failed to generate API token:', error);

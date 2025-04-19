@@ -27,8 +27,8 @@ Route::middleware('auth')->get('/user-basic', function (Request $request) {
 });
 
 // Web session authenticated users can use this to get an API token
-// Using 'auth' middleware instead of 'auth:web' for more compatibility
-Route::middleware('auth')->post('/token/generate', [AuthController::class, 'generateSessionToken']);
+// Using 'auth:web' middleware for session auth
+Route::middleware('auth:web')->post('/token/generate', [AuthController::class, 'generateSessionToken']);
 
 // Debug routes - for testing only
 if (app()->environment('local')) {

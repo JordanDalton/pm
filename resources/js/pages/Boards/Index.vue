@@ -10,6 +10,7 @@ import { useInitials } from '@/composables/useInitials';
 import { Link } from '@inertiajs/vue3';
 import { computed, ref, onMounted, watch } from 'vue';
 import BoardService, { type BoardFilters, type TeamBoards, type NewBoard } from '@/services/BoardService';
+import TokenInitializer from '@/components/TokenInitializer.vue';
 
 // Breadcrumbs for navigation
 const breadcrumbs: BreadcrumbItem[] = [
@@ -153,6 +154,7 @@ onMounted(() => {
 
 <template>
     <Head title="Boards" />
+    <TokenInitializer />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6">

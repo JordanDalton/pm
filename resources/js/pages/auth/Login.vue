@@ -8,11 +8,15 @@ import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
+import { useAuth } from '@/composables/useAuth';
 
 defineProps<{
     status?: string;
     canResetPassword: boolean;
 }>();
+
+// Initialize auth composable
+const auth = useAuth();
 
 const form = useForm({
     email: '',
@@ -22,7 +26,25 @@ const form = useForm({
 
 const submit = () => {
     form.post(route('login'), {
-        onFinish: () => form.reset('password'),
+        onFinish: async () => {
+            form.reset('password');
+            
+            // After successful login, generate an API token
+            try {
+                console.log('Login successful, generating API token...');
+                // Allow a small delay for session setup
+                setTimeout(async () => {
+                    try {
+                        await auth.login(form.email, form.password);
+                        console.log('API token generated successfully');
+                    } catch (err) {
+                        console.error('Failed to generate API token:', err);
+                    }
+                }, 500);
+            } catch (error) {
+                console.error('Error in token generation:', error);
+            }
+        },
     });
 };
 </script>

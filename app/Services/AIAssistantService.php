@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use Prism\Facades\Prism;
-use Prism\Enums\Provider;
+use Prism\Prism\Prism;
+use Prism\Prism\Enums\Provider;
 use App\Models\Board;
 use App\Models\Task;
 

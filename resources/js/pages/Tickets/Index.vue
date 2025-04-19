@@ -10,6 +10,7 @@ import { useInitials } from '@/composables/useInitials';
 import { Link } from '@inertiajs/vue3';
 import { computed, ref, onMounted, watch } from 'vue';
 import TicketService, { type Ticket, type TicketFilters } from '@/services/TicketService';
+import TokenInitializer from '@/components/TokenInitializer.vue';
 
 // Breadcrumbs for navigation
 const breadcrumbs: BreadcrumbItem[] = [
@@ -157,6 +158,7 @@ onMounted(() => {
 
 <template>
     <Head title="Tickets" />
+    <TokenInitializer />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6">

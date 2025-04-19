@@ -10,9 +10,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/composables/useInitials';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import AuthService from '@/services/AuthService';
+import { useAuth } from '@/composables/useAuth';
+import { usePage } from '@inertiajs/vue3';
+import api from '@/services/api';
+import TokenManager from '@/services/TokenManager';
+import TokenInitializer from '@/components/TokenInitializer.vue';
 
 // Determine if running in development mode
 const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Initialize auth composable
+const auth = useAuth();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -497,7 +505,8 @@ onUnmounted(() => {
 
 <template>
     <Head title="Dashboard" />
-
+    <TokenInitializer />
+    
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-4">
             <div class="flex justify-between items-center">
@@ -604,25 +613,59 @@ onUnmounted(() => {
                             <div>
                                 <h3 class="text-sm font-medium mb-1">API Token Status</h3>
                                 <div class="flex items-center gap-2">
-                                    <div class="h-3 w-3 rounded-full" :class="AuthService.isAuthenticated() ? 'bg-green-500' : 'bg-red-500'"></div>
-                                    <span>{{ AuthService.isAuthenticated() ? 'Authenticated' : 'Not authenticated' }}</span>
+                                    <div class="h-3 w-3 rounded-full" :class="auth.isAuthenticated.value ? 'bg-green-500' : 'bg-red-500'"></div>
+                                    <span>{{ auth.isAuthenticated.value ? 'Authenticated via Token' : 'No API token' }}</span>
                                 </div>
                             </div>
-                            <div v-if="AuthService.isAuthenticated()">
+                            <div v-if="auth.user.value">
                                 <h3 class="text-sm font-medium mb-1">User</h3>
-                                <div class="text-sm">{{ AuthService.getCurrentUser()?.name || 'Unknown' }}</div>
+                                <div class="text-sm">{{ auth.user.value?.name || 'Unknown' }}</div>
+                                <div class="text-xs text-muted-foreground mt-1">{{ auth.user.value?.email }}</div>
+                            </div>
+                            <div v-if="auth.token.value" class="mt-1">
+                                <h3 class="text-sm font-medium mb-1">Token (first 10 chars)</h3>
+                                <div class="text-xs font-mono">{{ auth.token.value.substring(0, 10) }}...</div>
                             </div>
                             <div class="flex gap-2">
-                                <Button size="sm" @click="async () => {
-                                    const userData = await AuthService.getUser();
-                                    if (userData && userData.user) {
-                                        AuthService.storeUser(userData.user);
+                                <Button size="sm" variant="outline" @click="async () => {
+                                    try {
+                                        const res = await AuthService.getUser();
+                                        console.log('User data:', res);
+                                    } catch (err) {
+                                        console.error('Error fetching user data:', err);
                                     }
                                 }">
-                                    Fetch User Data
+                                    Test API
                                 </Button>
-                                <Button size="sm" variant="destructive" @click="AuthService.clearAuth()">
-                                    Clear User Data
+                                <Button size="sm" @click="async () => {
+                                    try {
+                                        const token = await TokenManager.ensureToken();
+                                        if (token) {
+                                            console.log('Token generated/validated:', token.substring(0, 10) + '...');
+                                            // Update auth state
+                                            if (auth) {
+                                                auth.token.value = token;
+                                                const userData = JSON.parse(localStorage.getItem('user') || '{}');
+                                                auth.user.value = userData;
+                                                auth.isAuthenticated.value = true;
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.error('Error with token management:', err);
+                                    }
+                                }">
+                                    Generate/Validate Token
+                                </Button>
+                                <Button size="sm" variant="destructive" @click="() => {
+                                    TokenManager.clearToken();
+                                    // Update auth state
+                                    if (auth) {
+                                        auth.isAuthenticated.value = false;
+                                        auth.token.value = null;
+                                        auth.user.value = null;
+                                    }
+                                }">
+                                    Clear Token
                                 </Button>
                             </div>
                         </div>
