@@ -22,7 +22,26 @@ use App\Http\Controllers\API\AuthController;
 Route::post('/token', [AuthController::class, 'token']);
 
 // Web session authenticated users can use this to get an API token
-Route::middleware('auth:web')->post('/token/generate', [AuthController::class, 'generateSessionToken']);
+// Using 'auth' middleware instead of 'auth:web' for more compatibility
+Route::middleware('auth')->post('/token/generate', [AuthController::class, 'generateSessionToken']);
+
+// Debug route - for testing only
+if (app()->environment('local')) {
+    Route::get('/debug/session-info', function (Request $request) {
+        return response()->json([
+            'authenticated' => auth()->check(),
+            'user' => auth()->user() ? [
+                'id' => auth()->user()->id,
+                'name' => auth()->user()->name,
+                'email' => auth()->user()->email,
+            ] : null,
+            'session' => [
+                'has_session' => session()->isStarted(),
+                'token' => csrf_token(),
+            ]
+        ]);
+    });
+}
 
 // Auth required API routes
 Route::middleware('auth:sanctum')->group(function () {

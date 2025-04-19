@@ -27,22 +27,54 @@ api.interceptors.request.use(config => {
     }
     
     return config;
+}, error => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
 });
 
-// Add a response interceptor to handle unauthorized responses
+// Add a response interceptor to handle various error responses
 api.interceptors.response.use(
     response => response,
     error => {
-        // Handle 401 responses (unauthorized)
-        if (error.response && error.response.status === 401) {
-            // Clear stored tokens
-            localStorage.removeItem('api_token');
-            localStorage.removeItem('user');
-            
-            // Redirect to login page if not already there
-            if (window.location.pathname !== '/login') {
-                window.location.href = '/login';
+        // Log the error for debugging
+        console.error('API Response Error:', error.response || error.message);
+        
+        // Handle specific status codes
+        if (error.response) {
+            switch (error.response.status) {
+                case 401: // Unauthorized
+                    // Clear stored tokens
+                    localStorage.removeItem('api_token');
+                    localStorage.removeItem('user');
+                    
+                    // Redirect to login page if not already there
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login';
+                    }
+                    break;
+                
+                case 403: // Forbidden
+                    console.error('Access forbidden:', error.response.data.message || 'You do not have permission to access this resource');
+                    break;
+                
+                case 404: // Not Found
+                    console.error('Resource not found:', error.response.data.message || 'The requested resource could not be found');
+                    break;
+                
+                case 422: // Validation error
+                    console.error('Validation error:', error.response.data.errors || error.response.data.message);
+                    break;
+                
+                case 500: // Server error
+                case 502: // Bad gateway
+                case 503: // Service unavailable
+                case 504: // Gateway timeout
+                    console.error('Server error:', error.response.data.message || 'A server error occurred');
+                    break;
             }
+        } else if (error.request) {
+            // The request was made but no response was received
+            console.error('No response received:', error.request);
         }
         
         return Promise.reject(error);

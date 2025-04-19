@@ -44,13 +44,18 @@ initializeTheme();
 // This is wrapped in a timeout to ensure the app is fully loaded
 setTimeout(async () => {
     try {
+        const isAuthenticated = document.querySelector('meta[name="authenticated"][content="true"]');
+        console.log('Auth meta tag present:', !!isAuthenticated);
+        
         // Only generate a token if user is authenticated and doesn't already have one
-        if (document.querySelector('meta[name="authenticated"][content="true"]') && 
-            !localStorage.getItem('api_token')) {
-            await AuthService.generateToken();
-            console.log('API token generated successfully');
+        if (isAuthenticated) {
+            console.log('User is authenticated via web session, generating token...');
+            const result = await AuthService.generateToken();
+            console.log('API token generated successfully:', result);
+        } else {
+            console.log('User not authenticated, skipping token generation');
         }
     } catch (error) {
         console.error('Failed to generate API token:', error);
     }
-}, 500);
+}, 1000);

@@ -2,6 +2,7 @@
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { usePage } from '@inertiajs/vue3';
 import { SharedData } from '@/types';
+import ApiTokenInitializer from '@/components/ApiTokenInitializer.vue';
 
 interface Props {
     variant?: 'header' | 'sidebar';
@@ -14,9 +15,11 @@ const isOpen = usePage<SharedData>().props.sidebarOpen;
 
 <template>
     <div v-if="variant === 'header'" class="flex min-h-screen w-full flex-col">
+        <ApiTokenInitializer />
         <slot />
     </div>
     <SidebarProvider v-else :default-open="isOpen">
+        <ApiTokenInitializer />
         <slot />
     </SidebarProvider>
 </template>
