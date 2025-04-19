@@ -8,22 +8,16 @@ const api = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
-    withCredentials: true
+    withCredentials: true // Important for cookie-based authentication with Sanctum
 });
 
-// Add a request interceptor to handle CSRF token and authentication
+// Add a request interceptor to handle CSRF token
 api.interceptors.request.use(config => {
     // Get the CSRF token from the meta tag
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]');
     
     if (csrfToken) {
         config.headers['X-CSRF-TOKEN'] = csrfToken.getAttribute('content');
-    }
-    
-    // Add bearer token if available
-    const token = localStorage.getItem('api_token');
-    if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
     }
     
     return config;

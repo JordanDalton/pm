@@ -2,25 +2,21 @@
 import { onMounted } from 'vue';
 import AuthService from '@/services/AuthService';
 
-// This component initializes the API token for authenticated users
+// This component fetches the authenticated user data and stores it
 // It should be included in the main app layout
 
 onMounted(async () => {
   try {
-    // Only try to generate a token if the user is authenticated in the session
-    // but doesn't have an API token yet
+    // Fetch user data if not already authenticated
     if (!AuthService.isAuthenticated()) {
-      const response = await AuthService.generateToken();
-      
-      if (response.data && response.data.token) {
-        // Store the token and user data
-        AuthService.storeToken(response.data.token);
-        AuthService.storeUser(response.data.user);
-        console.log('API token generated and stored successfully');
+      const userData = await AuthService.getUser();
+      if (userData && userData.user) {
+        AuthService.storeUser(userData.user);
+        console.log('User data fetched and stored successfully');
       }
     }
   } catch (error) {
-    console.error('Failed to initialize API token:', error);
+    console.error('Failed to fetch user data:', error);
     // If there's an error here, it's likely because the user is not authenticated
     // We don't need to do anything special in that case
   }
@@ -28,5 +24,5 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- This is an invisible component that only handles API token initialization -->
+  <!-- This is an invisible component that only handles user data initialization -->
 </template>

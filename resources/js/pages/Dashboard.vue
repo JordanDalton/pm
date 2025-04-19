@@ -9,7 +9,10 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/composables/useInitials';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import ApiTokenStatus from '@/components/ApiTokenStatus.vue';
+import AuthService from '@/services/AuthService';
+
+// Determine if running in development mode
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -591,13 +594,38 @@ onUnmounted(() => {
             
             <div :class="`grid gap-6 ${dashboardLayout.columnCount === 3 ? 'md:grid-cols-3' : dashboardLayout.columnCount === 1 ? '' : 'md:grid-cols-2'}`">
                 <!-- API Token Status Card (for developers) -->
-                <Card v-if="import.meta.env.DEV" class="mb-4">
+                <Card v-if="isDevelopment" class="mb-4">
                     <CardHeader>
                         <CardTitle>Developer Tools</CardTitle>
                         <CardDescription>API authentication status for development purposes</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ApiTokenStatus />
+                        <div class="space-y-4">
+                            <div>
+                                <h3 class="text-sm font-medium mb-1">API Token Status</h3>
+                                <div class="flex items-center gap-2">
+                                    <div class="h-3 w-3 rounded-full" :class="AuthService.isAuthenticated() ? 'bg-green-500' : 'bg-red-500'"></div>
+                                    <span>{{ AuthService.isAuthenticated() ? 'Authenticated' : 'Not authenticated' }}</span>
+                                </div>
+                            </div>
+                            <div v-if="AuthService.isAuthenticated()">
+                                <h3 class="text-sm font-medium mb-1">User</h3>
+                                <div class="text-sm">{{ AuthService.getCurrentUser()?.name || 'Unknown' }}</div>
+                            </div>
+                            <div class="flex gap-2">
+                                <Button size="sm" @click="async () => {
+                                    const userData = await AuthService.getUser();
+                                    if (userData && userData.user) {
+                                        AuthService.storeUser(userData.user);
+                                    }
+                                }">
+                                    Fetch User Data
+                                </Button>
+                                <Button size="sm" variant="destructive" @click="AuthService.clearAuth()">
+                                    Clear User Data
+                                </Button>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
                 

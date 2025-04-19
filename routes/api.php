@@ -21,12 +21,18 @@ use App\Http\Controllers\API\AuthController;
 // Public API routes
 Route::post('/token', [AuthController::class, 'token']);
 
+// Basic user info route (no sanctum auth required, uses web session)
+Route::middleware('auth')->get('/user-basic', function (Request $request) {
+    return response()->json($request->user());
+});
+
 // Web session authenticated users can use this to get an API token
 // Using 'auth' middleware instead of 'auth:web' for more compatibility
 Route::middleware('auth')->post('/token/generate', [AuthController::class, 'generateSessionToken']);
 
-// Debug route - for testing only
+// Debug routes - for testing only
 if (app()->environment('local')) {
+    // Session authentication check
     Route::get('/debug/session-info', function (Request $request) {
         return response()->json([
             'authenticated' => auth()->check(),
@@ -39,6 +45,26 @@ if (app()->environment('local')) {
                 'has_session' => session()->isStarted(),
                 'token' => csrf_token(),
             ]
+        ]);
+    });
+    
+    // Test route that doesn't require authentication
+    Route::get('/debug/public', function () {
+        return response()->json([
+            'message' => 'This is a public endpoint',
+            'time' => now()->toIso8601String()
+        ]);
+    });
+    
+    // Test route that requires Sanctum authentication
+    Route::middleware('auth:sanctum')->get('/debug/auth', function (Request $request) {
+        return response()->json([
+            'message' => 'You are authenticated!',
+            'user' => $request->user() ? [
+                'id' => $request->user()->id,
+                'name' => $request->user()->name,
+                'email' => $request->user()->email,
+            ] : null
         ]);
     });
 }

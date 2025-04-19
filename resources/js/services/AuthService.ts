@@ -1,4 +1,5 @@
 import api from './api';
+import axios from 'axios';
 
 export interface User {
     id: number;
@@ -6,46 +7,88 @@ export interface User {
     email: string;
 }
 
+// For Sanctum CSRF protection
+const csrfCookie = async () => {
+    return axios.get('/sanctum/csrf-cookie');
+};
+
 export default {
     /**
      * Get authenticated user information
+     * With Sanctum, the session cookie will be sent automatically
      */
-    getUser() {
-        return api.get('/user');
+    async getUser() {
+        try {
+            // First try to get user using Sanctum auth
+            try {
+                const response = await axios.get('/api/user');
+                console.log('Got user via Sanctum token', response.data);
+                return response.data;
+            } catch (tokenError) {
+                console.log('Could not get user via Sanctum token, falling back to session auth');
+                
+                // Fallback to session auth if Sanctum fails
+                const webResponse = await axios.get('/api/user-basic');
+                console.log('Got user via web session', webResponse.data);
+                return webResponse.data;
+            }
+        } catch (error) {
+            console.error('Failed to get user:', error);
+            return null;
+        }
     },
 
     /**
-     * Generate a token for a user that's already authenticated via web session
+     * Login with credentials
+     * This uses Laravel's session-based authentication
      */
-    generateToken() {
-        return api.post('/token/generate', {
-            device_name: `web-${navigator.userAgent}`
-        });
+    async login(email: string, password: string, remember: boolean = false) {
+        // Get CSRF cookie first
+        await csrfCookie();
+        
+        try {
+            // Login via Laravel's session authentication
+            const response = await axios.post('/login', {
+                email,
+                password,
+                remember
+            });
+            
+            // If successful, get the user data
+            const userData = await this.getUser();
+            if (userData) {
+                this.storeUser(userData);
+                return {
+                    success: true,
+                    user: userData
+                };
+            }
+            
+            return { success: true };
+        } catch (error) {
+            console.error('Login failed:', error);
+            return {
+                success: false,
+                error
+            };
+        }
     },
 
     /**
-     * Login directly via API (not normally used if using Inertia)
+     * Logout the user
      */
-    login(email: string, password: string) {
-        return api.post('/token', {
-            email,
-            password,
-            device_name: `web-${navigator.userAgent}`
-        });
-    },
-
-    /**
-     * Revoke all tokens for the authenticated user
-     */
-    revokeTokens() {
-        return api.post('/token/revoke');
-    },
-
-    /**
-     * Store the authentication token in localStorage
-     */
-    storeToken(token: string) {
-        localStorage.setItem('api_token', token);
+    async logout() {
+        try {
+            await axios.post('/logout');
+            this.clearAuth();
+            return { success: true };
+        } catch (error) {
+            console.error('Logout failed:', error);
+            return {
+                success: false,
+                error
+            };
+        }
     },
 
     /**
@@ -59,15 +102,16 @@ export default {
      * Clear authentication data from localStorage
      */
     clearAuth() {
-        localStorage.removeItem('api_token');
         localStorage.removeItem('user');
     },
 
     /**
-     * Check if the user is authenticated (has a token)
+     * Check if the user is authenticated
+     * With Sanctum, the session cookie is used for authentication
+     * so we'll check if we have a user in localStorage as an indicator
      */
     isAuthenticated() {
-        return localStorage.getItem('api_token') !== null;
+        return this.getCurrentUser() !== null;
     },
 
     /**
