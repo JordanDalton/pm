@@ -15,23 +15,78 @@ const props = defineProps({
     boardId: {
         type: String,
         required: true
+    },
+    board: {
+        type: Object,
+        default: null
+    },
+    aiInsights: {
+        type: String,
+        default: null
     }
 });
 
-// Mock data for the board
-const board = {
-    id: props.boardId,
-    name: 'Frontend Development',
-    description: 'UI/UX implementation and frontend features',
-    status: 'active',
-    createdAt: '2025-04-15',
-    updatedAt: '2025-04-18',
-    members: [
-        { name: 'Jordan Dalton', email: 'jordan@example.com', avatar: null },
-        { name: 'Alex Smith', email: 'alex@example.com', avatar: null },
-        { name: 'Taylor Morgan', email: 'taylor@example.com', avatar: null }
-    ],
-    columns: [
+// Use either the provided board data or fallback to mock data
+const boardData = computed(() => {
+    if (props.board) {
+        return props.board;
+    }
+    
+    // Mock data for the board as fallback
+    return {
+        id: props.boardId,
+        name: 'Frontend Development',
+        description: 'UI/UX implementation and frontend features',
+        status: 'active',
+        createdAt: '2025-04-15',
+        updatedAt: '2025-04-18',
+        members: [
+            { name: 'Jordan Dalton', email: 'jordan@example.com', avatar: null },
+            { name: 'Alex Smith', email: 'alex@example.com', avatar: null },
+            { name: 'Taylor Morgan', email: 'taylor@example.com', avatar: null }
+        ],
+        tasks: []
+    };
+});
+
+// Transform tasks into kanban-style columns
+const columns = computed(() => {
+    const columnDefinitions = [
+        { id: 'todo', name: 'To Do', status: 'todo' },
+        { id: 'in_progress', name: 'In Progress', status: 'in_progress' },
+        { id: 'review', name: 'Review', status: 'review' },
+        { id: 'done', name: 'Done', status: 'done' }
+    ];
+    
+    // If we have real board data with tasks
+    if (props.board && props.board.tasks) {
+        return columnDefinitions.map(column => {
+            const tasksInColumn = props.board.tasks.filter(task => 
+                task.status.toLowerCase().replace(' ', '_') === column.status
+            );
+            
+            return {
+                ...column,
+                tasks: tasksInColumn.map(task => ({
+                    id: task.id,
+                    title: task.title,
+                    description: task.description,
+                    priority: task.priority,
+                    status: task.status,
+                    assignee: {
+                        name: task.user ? task.user.name : 'Unassigned',
+                        email: task.user ? task.user.email : '',
+                        avatar: null
+                    },
+                    dueDate: task.due_date,
+                    labels: ['Task'] // Placeholder, would need proper labels in the model
+                }))
+            };
+        });
+    }
+    
+    // Fallback mock data if no real data is available
+    return [
         {
             id: 'todo',
             name: 'To Do',
@@ -61,19 +116,6 @@ const board = {
                     },
                     dueDate: '2025-05-20',
                     labels: ['Enhancement', 'Frontend', 'UX']
-                },
-                {
-                    id: 'PM-129',
-                    title: 'Create API documentation for developers',
-                    description: 'Document all API endpoints, parameters, and responses for developer reference.',
-                    priority: 'Low',
-                    assignee: {
-                        name: 'Taylor Morgan',
-                        email: 'taylor@example.com',
-                        avatar: null
-                    },
-                    dueDate: '2025-06-01',
-                    labels: ['Documentation', 'API']
                 }
             ]
         },
@@ -93,19 +135,6 @@ const board = {
                     },
                     dueDate: '2025-05-01',
                     labels: ['AI', 'Enhancement', 'Backend']
-                },
-                {
-                    id: 'PM-127',
-                    title: 'Fix search functionality in project view',
-                    description: 'The search function in the project view is not returning all relevant results. Need to debug and fix.',
-                    priority: 'High',
-                    assignee: {
-                        name: 'Alex Smith',
-                        email: 'alex@example.com',
-                        avatar: null
-                    },
-                    dueDate: '2025-04-22',
-                    labels: ['Bug', 'Frontend']
                 }
             ]
         },
@@ -147,8 +176,8 @@ const board = {
                 }
             ]
         }
-    ]
-};
+    ];
+});
 
 // Search filter
 const searchQuery = ref('');
@@ -156,18 +185,18 @@ const searchQuery = ref('');
 // Filtered tasks
 const filteredColumns = computed(() => {
     if (!searchQuery.value) {
-        return board.columns;
+        return columns.value;
     }
     
     const query = searchQuery.value.toLowerCase();
     
-    return board.columns.map(column => {
+    return columns.value.map(column => {
         const filteredTasks = column.tasks.filter(task => 
             task.title.toLowerCase().includes(query) || 
-            task.id.toLowerCase().includes(query) ||
-            task.description.toLowerCase().includes(query) ||
-            task.assignee.name.toLowerCase().includes(query) ||
-            task.labels.some(label => label.toLowerCase().includes(query))
+            (task.id && task.id.toString().toLowerCase().includes(query)) ||
+            (task.description && task.description.toLowerCase().includes(query)) ||
+            (task.assignee && task.assignee.name && task.assignee.name.toLowerCase().includes(query)) ||
+            (task.labels && task.labels.some(label => label.toLowerCase().includes(query)))
         );
         
         return {
@@ -223,22 +252,22 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: route('boards.index'),
     },
     {
-        title: board.name,
-        href: route('boards.show', board.id),
+        title: boardData.value.name,
+        href: route('boards.show', boardData.value.id),
     },
 ];
 </script>
 
 <template>
-    <Head :title="board.name" />
+    <Head :title="boardData.name" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6">
             <!-- Board header section -->
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight">{{ board.name }}</h1>
-                    <p class="text-muted-foreground">{{ board.description }}</p>
+                    <h1 class="text-2xl font-bold tracking-tight">{{ boardData.name }}</h1>
+                    <p class="text-muted-foreground">{{ boardData.description }}</p>
                 </div>
                 <div class="flex gap-2">
                     <Dialog>
@@ -358,30 +387,30 @@ const breadcrumbs: BreadcrumbItem[] = [
                             <div>
                                 <div class="text-sm font-medium text-muted-foreground">Total Tasks</div>
                                 <div class="mt-1 text-2xl font-bold">
-                                    {{ board.columns.reduce((acc, col) => acc + col.tasks.length, 0) }}
+                                    {{ columns.reduce((acc, col) => acc + col.tasks.length, 0) }}
                                 </div>
                             </div>
                             <div>
                                 <div class="text-sm font-medium text-muted-foreground">Completed</div>
                                 <div class="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">
-                                    {{ board.columns.find(col => col.id === 'done')?.tasks.length || 0 }}
+                                    {{ columns.find(col => col.id === 'done')?.tasks.length || 0 }}
                                 </div>
                             </div>
                             <div>
                                 <div class="text-sm font-medium text-muted-foreground">In Progress</div>
                                 <div class="mt-1 text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                                    {{ board.columns.find(col => col.id === 'in_progress')?.tasks.length || 0 }}
+                                    {{ columns.find(col => col.id === 'in_progress')?.tasks.length || 0 }}
                                 </div>
                             </div>
                             <div>
                                 <div class="text-sm font-medium text-muted-foreground">Team Members</div>
                                 <div class="mt-1 flex -space-x-2">
-                                    <Avatar v-for="(member, i) in board.members.slice(0, 4)" :key="i" class="h-8 w-8 border-2 border-background">
+                                    <Avatar v-for="(member, i) in boardData.members?.slice(0, 4) || []" :key="i" class="h-8 w-8 border-2 border-background">
                                         <AvatarImage v-if="member.avatar" :src="member.avatar" />
                                         <AvatarFallback>{{ useInitials(member.name) }}</AvatarFallback>
                                     </Avatar>
-                                    <div v-if="board.members.length > 4" class="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs border-2 border-background">
-                                        +{{ board.members.length - 4 }}
+                                    <div v-if="boardData.members?.length > 4" class="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs border-2 border-background">
+                                        +{{ boardData.members.length - 4 }}
                                     </div>
                                 </div>
                             </div>
@@ -397,6 +426,28 @@ const breadcrumbs: BreadcrumbItem[] = [
                             />
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+            
+            <!-- AI Insights Card - Only show if insights are available -->
+            <Card v-if="aiInsights" class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border border-blue-100 dark:border-blue-900">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 dark:text-blue-300">
+                            <path d="M21 12a9 9 0 1 1-9-9 8.997 8.997 0 0 1 8.485 6"></path>
+                            <path d="M14.943 11.943 21 12"></path>
+                            <path d="M9.002 16c.855.74 2.053.93 3.122.494 1.07-.434 1.796-1.426 1.879-2.554"></path>
+                            <rect x="10" y="8" width="0.01" height="0.01"></rect>
+                            <rect x="14" y="8" width="0.01" height="0.01"></rect>
+                        </svg>
+                        AI Project Assistant
+                    </CardTitle>
+                    <CardDescription class="text-blue-600 dark:text-blue-400">
+                        AI-powered insights and recommendations for this board
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="pt-0">
+                    <div class="markdown-content text-blue-700 dark:text-blue-300 prose prose-sm max-w-none" v-html="aiInsights"></div>
                 </CardContent>
             </Card>
 

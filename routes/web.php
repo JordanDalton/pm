@@ -24,6 +24,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('tickets/{id}', [TicketController::class, 'update'])->name('tickets.update');
     Route::delete('tickets/{id}', [TicketController::class, 'destroy'])->name('tickets.destroy');
     
+    // AI assistance for tickets
+    Route::post('tickets/ai-assist', [TicketController::class, 'aiAssist'])->name('tickets.ai-assist');
+    
     // Boards routes
     Route::get('boards', [BoardController::class, 'index'])->name('boards.index');
     Route::get('boards/create', [BoardController::class, 'create'])->name('boards.create');

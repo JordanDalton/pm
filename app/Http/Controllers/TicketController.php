@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Task;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Services\AIAssistantService;
 
 class TicketController extends Controller
 {
@@ -12,9 +16,11 @@ class TicketController extends Controller
      */
     public function index()
     {
-        // This will eventually fetch tickets from the database
-        // For now, we're just rendering the view
-        return Inertia::render('Tickets/Index');
+        $tickets = Task::latest()->get();
+        
+        return Inertia::render('Tickets/Index', [
+            'tickets' => $tickets
+        ]);
     }
 
     /**
@@ -22,10 +28,10 @@ class TicketController extends Controller
      */
     public function show($id)
     {
-        // This will eventually fetch a specific ticket from the database
-        // For now, we're just rendering the view with a ticketId parameter
+        $ticket = Task::findOrFail($id);
+        
         return Inertia::render('Tickets/Show', [
-            'ticketId' => $id
+            'ticket' => $ticket
         ]);
     }
 
@@ -34,7 +40,47 @@ class TicketController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Tickets/Create');
+        return Inertia::render('Tickets/Create', [
+            'aiAssistEnabled' => true
+        ]);
+    }
+    
+    /**
+     * AI assistance for task details
+     */
+    public function aiAssist(Request $request, AIAssistantService $aiService)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'assistType' => 'required|in:description,priority',
+        ]);
+        
+        if ($request->assistType === 'description') {
+            $enhancedDescription = $aiService->enhanceTaskDescription(
+                $request->title,
+                $request->description
+            );
+            
+            return response()->json([
+                'description' => $enhancedDescription
+            ]);
+        }
+        
+        if ($request->assistType === 'priority') {
+            $suggestedPriority = $aiService->suggestTaskPriority(
+                $request->title,
+                $request->description
+            );
+            
+            return response()->json([
+                'priority' => $suggestedPriority
+            ]);
+        }
+        
+        return response()->json([
+            'error' => 'Invalid assistance type'
+        ], 400);
     }
 
     /**
@@ -42,8 +88,17 @@ class TicketController extends Controller
      */
     public function store(Request $request)
     {
-        // This will eventually store a new ticket in the database
-        // For now, we'll just redirect to the tickets index
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'status' => 'required|string',
+            'priority' => 'required|string',
+            'board_id' => 'required|exists:boards,id',
+            'user_id' => 'required|exists:users,id',
+        ]);
+        
+        Task::create($validated);
+        
         return redirect()->route('tickets.index');
     }
 
@@ -52,9 +107,10 @@ class TicketController extends Controller
      */
     public function edit($id)
     {
-        // This will eventually fetch a specific ticket for editing
+        $ticket = Task::findOrFail($id);
+        
         return Inertia::render('Tickets/Edit', [
-            'ticketId' => $id
+            'ticket' => $ticket
         ]);
     }
 
@@ -63,8 +119,26 @@ class TicketController extends Controller
      */
     public function update(Request $request, $id)
     {
-        // This will eventually update a specific ticket in the database
-        // For now, we'll just redirect to the ticket's show page
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'status' => 'required|string',
+            'priority' => 'required|string',
+            'board_id' => 'required|exists:boards,id',
+            'user_id' => 'required|exists:users,id',
+        ]);
+        
+        // Use direct SQL update to ensure the update works
+        DB::table('tasks')->where('id', $id)->update([
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'status' => $validated['status'],
+            'priority' => $validated['priority'],
+            'board_id' => $validated['board_id'],
+            'user_id' => $validated['user_id'],
+            'updated_at' => now(),
+        ]);
+        
         return redirect()->route('tickets.show', $id);
     }
 
@@ -73,8 +147,9 @@ class TicketController extends Controller
      */
     public function destroy($id)
     {
-        // This will eventually delete a specific ticket from the database
-        // For now, we'll just redirect to the tickets index
+        $ticket = Task::findOrFail($id);
+        $ticket->delete();
+        
         return redirect()->route('tickets.index');
     }
 }
