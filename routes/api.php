@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\TicketAPIController;
 use App\Http\Controllers\API\BoardAPIController;
+use App\Http\Controllers\API\DashboardAPIController;
+use App\Http\Controllers\API\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,8 +18,17 @@ use App\Http\Controllers\API\BoardAPIController;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+// Public API routes
+Route::post('/token', [AuthController::class, 'token']);
+
+// Web session authenticated users can use this to get an API token
+Route::middleware('auth:web')->post('/token/generate', [AuthController::class, 'generateSessionToken']);
+
+// Auth required API routes
+Route::middleware('auth:sanctum')->group(function () {
+    // Auth management
+    Route::get('/user', [AuthController::class, 'user']);
+    Route::post('/token/revoke', [AuthController::class, 'revokeTokens']);
 });
 
 // API routes for Tickets

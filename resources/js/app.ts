@@ -6,6 +6,7 @@ import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from 'ziggy-js';
 import { initializeTheme } from './composables/useAppearance';
+import { AuthService } from './services/auth';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -38,3 +39,18 @@ createInertiaApp({
 
 // This will set light / dark mode on page load...
 initializeTheme();
+
+// Initialize API token for authenticated users (web session to API token)
+// This is wrapped in a timeout to ensure the app is fully loaded
+setTimeout(async () => {
+    try {
+        // Only generate a token if user is authenticated and doesn't already have one
+        if (document.querySelector('meta[name="authenticated"][content="true"]') && 
+            !localStorage.getItem('api_token')) {
+            await AuthService.generateToken();
+            console.log('API token generated successfully');
+        }
+    } catch (error) {
+        console.error('Failed to generate API token:', error);
+    }
+}, 500);

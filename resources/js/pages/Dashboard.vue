@@ -9,6 +9,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/composables/useInitials';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ApiTokenStatus from '@/components/ApiTokenStatus.vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -589,6 +590,17 @@ onUnmounted(() => {
             </div>
             
             <div :class="`grid gap-6 ${dashboardLayout.columnCount === 3 ? 'md:grid-cols-3' : dashboardLayout.columnCount === 1 ? '' : 'md:grid-cols-2'}`">
+                <!-- API Token Status Card (for developers) -->
+                <Card v-if="import.meta.env.DEV" class="mb-4">
+                    <CardHeader>
+                        <CardTitle>Developer Tools</CardTitle>
+                        <CardDescription>API authentication status for development purposes</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ApiTokenStatus />
+                    </CardContent>
+                </Card>
+                
                 <!-- Main Content Cards -->
                 <div :class="`${dashboardLayout.showAI ? (dashboardLayout.columnCount === 3 ? 'col-span-2' : '') : 'col-span-full'} grid gap-6 md:grid-cols-${dashboardLayout.columnCount === 1 ? '1' : '2'} auto-rows-min`">
                     
